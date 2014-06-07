@@ -1,0 +1,122 @@
+Reproducible Research - PA 1
+========================================================
+## Loading and Preprocessing the data
+
+```{r}
+mydata <- read.csv("activity.csv")
+```
+
+## What is mean total number of steps taken per day
+
+### 1. Histogram
+
+```{r fig.width=7, fig.height=6}
+steps.total <- aggregate(steps ~ date, data = mydata, FUN = sum)
+hist(steps.total$steps, breaks = 20, col = "blue", xlab = "Daily steps", ylab = "Frequency", main = "Total steps per day")
+```
+
+### 2. Mean and median
+
+``` {r}
+mean <- mean(steps.total$steps)
+median <- median(steps.total$steps)
+```
+
+The **mean** total number of steps taken per day is `r mean`.
+The **median** total number of steps takes per day is `r median`.
+
+## What is the average daily activity pattern?
+### 1. Time series
+
+```{r fig.width=7, fig.height=6}
+steps.interval <- aggregate(steps ~ interval, data = mydata, FUN = function(x){
+        mean(x, na.rm= TRUE)
+})
+plot(steps.interval$interval, steps.interval$steps, type = "l", col = "red", xlab = "Time interval", ylab = "Averaged number of steps", main = "Averaged steps per time interval")
+```
+
+### 2. The 5-minute interval constains the maximum number of steps
+
+```{r}
+max.interval <- steps.interval$interval[which.max(steps.interval$steps)]
+```
+
+The 5-minute interval is: **`r max.interval`**.
+
+## Imputing missing values
+### 1. Total number of NAs
+
+```{r}
+N <- sum(is.na(mydata))
+```
+
+The total number of NAs in the dataset is: **`r N`**.
+
+### 2. Filling in all the missing values in the dataset
+
+I will use the mean value for that 5-minute interval to fill the NA.
+
+### 3. New dataset with missing data filled in
+
+I'm going to use a for loop to achieve this goal.
+```{r}
+for(n in 1:nrow(mydata)){
+        if(is.na(mydata$steps[n]))
+                mydata$steps[n] <- steps.interval$steps[which(steps.interval$interval
+                                                           ==mydata$interval[n])]        
+}
+
+head(mydata)
+summary(mydata)
+```
+
+### 4. Histogram and other calculation
+
+```{r}
+steps.total_new <- aggregate(steps ~ date, data = mydata, FUN = sum)
+hist(steps.total_new$steps, breaks = 20, col = "blue", xlab = "Daily steps", ylab = "Frequency", main = "New Total steps per day")
+
+mean_new <- mean(steps.total_new$steps)
+median_new <- median(steps.total_new$steps)
+```
+
+After filling up the NAs, the **new mean** total number of steps taken per day is `r mean_new`.
+The **new median** total number of steps takes per day is `r median_new`.
+
+Compared with the values obtained previously, the impact of imputing missing data on the estimates of the total daily number of steps is negligible. However, it does have influence on the distribution of total steps per day. The peak arount 0 step disappears.
+
+## Activity patterns between weekdays and weekends
+
+### 1. Create a new factor variable
+
+```{r}
+type <- function(date){
+        Sys.setlocale("LC_TIME", "English")
+        week <- weekdays(as.Date(date))
+        if (week %in% c("Saturday", "Sunday")){
+                "weekend"}
+        else{
+                "weekday"}
+}
+
+mydata$daytype <- as.factor(sapply(mydata$date, type))
+
+head(mydata)
+summary(mydata)
+```
+
+**Note**: Sys.setlocale("LC_TIME", "English") is  to convert my system time expressed in English.
+
+### 2. Making the panel plot containing a time series plot
+
+```{r}
+steps.new <- aggregate(mydata$steps, by=list(mydata$interval, mydata$daytype), FUN=function(x){
+        mean(x, na.rm = TRUE)
+})
+names(steps.new) <- c("interval", "daytype","AveStep")
+
+library(lattice)
+with(steps.new, xyplot(AveStep ~ interval | daytype, type = "l", layout = c(1,2), xlab = "Time interval", ylab = "Averaged number of steps"))
+```
+
+
